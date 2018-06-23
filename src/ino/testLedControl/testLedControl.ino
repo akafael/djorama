@@ -7,26 +7,53 @@
 #define PINSTRIP 5
 #define NUMLEDS_STRIP 2
 
+#define BUFFER_SIZE 10
+
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(NUMLEDS_STRIP, PINSTRIP, NEO_GRB + NEO_KHZ800);
 
 elapsedMillis timerGlobal;
 const int timeStep = 2;
 
 int ledState;
-float a0;
+float a0,a1,a2;
+float musicInput;
+float filterLowPich;
+float filterTopPich;
 float bassInput;
 float midInput;
 
 void setup() {
+  
+  Serial.begin(115200);
 
   pinMode( PINLED, OUTPUT );
   ledStrip.begin(); // Initializes the NeoPixel library.  
   ledState = LOW;
 
-  // Calculate filter
-  float freqCut = 0.3; // Khz
-  float w0 = TWO_PI*timeStep*freqCut;
-  a0 = w0/(w0+1);
+  // Calculate High pass filter
+  float freqCut0 = 0.06; // Khz
+  float w0 = TWO_PI*timeStep*freqCut0;
+  a0 = 1/(w0+1);
+
+  // Calculate Low pass filter
+  float freqCut1 = 0.3; // Khz
+  float w1 = TWO_PI*timeStep*freqCut1;
+  a1 = w1/(w1+1);
+
+  // Calculate High pass filter
+  float freqCut2 = 0.5; // Khz
+  float w2 = TWO_PI*timeStep*freqCut2;
+  a2 = 1/(w2+1);
+
+
+  Serial.print("Filters PARAM: ");
+  Serial.print(a0);
+  Serial.print(" ");
+  Serial.print(a1);
+  Serial.print(" ");
+  Serial.println(a2);
+
+  delay(500);
 
   timerGlobal = 0;
 }
@@ -38,16 +65,32 @@ void loop() {
     timerGlobal = 0; 
 
     // Read Input
-    int musicInput = analogRead(PINMIC);
+    int rawInput = analogRead(PINMIC);
     
-    // Low Pass Filter - Bass (300hz)
-    bassInput = a0*(bassInput - musicInput) + musicInput;
+    // High Pass Filter (20hz)
+    filterLowPich = a0*(filterLowPich - musicInput + rawInput);
+    // High Pass Filter (500hz)
+    midInput = a2*(midInput - musicInput + rawInput);
+    musicInput = rawInput;
 
-    // High Pass Filter - 300hz
-    midInput = musicInput - bassInput;
+    // Low Pass Filter (300Hz)
+    bassInput = a1*(bassInput - filterLowPich) + filterLowPich;
 
     // Toggle Led for evaluating time freq
     ledState =! ledState ;
-    digitalWrite( PINLED ,ledState);
+    digitalWrite( PINLED ,bassInput*bassInput > 50);
+
+    // Print Everything for debug
+    Serial.print(timerGlobal);
+    Serial.print(" ");
+    Serial.print(millis());
+    Serial.print(" ");
+    Serial.print(musicInput);
+    Serial.print(" ");
+    Serial.print(filterLowPich);
+    Serial.print(" ");
+    Serial.print(midInput);
+    Serial.print(" ");
+    Serial.println(bassInput);//*/
   }
 }
