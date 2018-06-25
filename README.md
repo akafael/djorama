@@ -1,2 +1,2 @@
 # djorama
-Cyber Punk Diorama Controller based on Arduino
+Cyber Punk Diorama Controller using Arduino
