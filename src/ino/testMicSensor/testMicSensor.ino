@@ -20,5 +20,8 @@ void loop() {
   {
     digitalWrite(PORT_LED,LOW);
   }
+
+  Serial.print(millis());
+  Serial.print(" ");
   Serial.println(micInput);
 }
