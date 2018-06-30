@@ -19,7 +19,7 @@
 #define SIZECOLORPALET 10
 #define NUMEFFECTS 10
 
-#define TIMESTEP_LOOP 100
+#define TIMESTEP_LOOP 200
 #define TIMESTEP_COLOR 500
 #define TIMESTEP_EFFECT 5000
 
@@ -97,8 +97,9 @@ void loop() {
     i += inc;
 
     // Effect Step
-    effectVector[indexEffect](i,colorPalet[indexColor]);
-    fill_solid(leds,NUM_LEDS,0); // ignore effect and turn Everything off
+    //effectVector[indexEffect](i,colorPalet[indexColor]);
+    effectLightSideFill(i,colorPalet[indexColor]);
+    //fill_solid(leds,NUM_LEDS,0); // ignore effect and turn Everything off
     FastLED.show();
   }
 }
@@ -128,7 +129,7 @@ void effectLightMoving(unsigned int k,CRGB color)
 void effectLightFill(unsigned int k,CRGB color)
 {
     fill_solid(leds,NUM_LEDS,0x000000);
-    fill_solid(leds,i,color);
+    fill_solid(leds,k,color);
 }
 
 /**
@@ -146,5 +147,37 @@ void effectLightCollision(unsigned int k,CRGB color)
       fill_solid(leds,NUM_LEDS,0x000000);
       leds[k] = color;
       leds[NUM_LEDS-k] = color;
+    }
+}
+
+/**
+ * Effect: move LEDs position starting from sides and 
+ *         turn on everything when they reach the center
+ */
+void effectLightDots(unsigned int k,CRGB color)
+{
+    fill_solid(leds,NUM_LEDS,0x000000);
+    leds[k] = color;
+    leds[NUM_LEDS-k] = color;
+}
+
+/**
+ * Effect: move LEDs position starting from sides and 
+ *         turn on everything when they reach the center
+ */
+void effectLightSideFill(unsigned int k,CRGB color)
+{
+    int endK = (NUM_LEDS - k);
+    if( endK > k) // Center
+    {
+      fill_solid(leds,NUM_LEDS,0x000000);
+      fill_solid(leds,k,color);
+      fill_solid(leds+endK,k,color);
+      fill_solid(leds,NUM_LEDS,0x000000);
+    }
+    else
+    {
+      fill_solid(leds,NUM_LEDS,color);
+      fill_solid(leds+endK,k-endK,0x000000);
     }
 }
