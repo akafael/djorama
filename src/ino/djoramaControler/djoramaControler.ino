@@ -16,6 +16,7 @@
 
 // Constants -------------------------------------------------------
 #define PINLED 5
+#define PINMIC1_ALG A0
 #define PINMIC1_DIG 2
 
 #define NUM_LEDS 20
@@ -28,11 +29,13 @@
 #define TIMESTEP_COLOR 500
 #define TIMESTEP_EFFECT 20000
 
+#define SOUND_BASS_THRESHOLD 570 // Max 600
+
 // Global Variables ------------------------------------------------
 
 // Timers
 elapsedMillis timerSilence;
-elapsedMillis timerStrobe;
+elapsedMillis timerLEDStrip;
 elapsedMillis timerLoop;
 elapsedMillis timerBeat;
 elapsedMillis timerMusicInput;
@@ -58,7 +61,11 @@ unsigned int indexColor = 0;
 unsigned int i = 0;
 int inc;
 int isBeat;
+int isBass;
 int isMusicPlaying = 0;
+
+int soundSilenceRef = 0;
+int soundMidThreshold = 0;
 
 // Function Pointer Vector for easy effect access
 void (*effectVector[NUMEFFECTS])(unsigned int k,CRGB color);
@@ -66,6 +73,7 @@ void (*effectVector[NUMEFFECTS])(unsigned int k,CRGB color);
 // Main functions --------------------------------------------------
 void setup() {
   // Setup Pins
+  pinMode(PINMIC1_ALG,INPUT);
   pinMode(PINMIC1_DIG,INPUT);
   
   // Start LED Strip
@@ -77,42 +85,47 @@ void setup() {
   i = 0;
 
   // Register effects used
-  effectVector[0] = effectTurnOn;
-  effectVector[1] = effectLightMoving;
-  effectVector[2] = effectLightFill;
-  effectVector[3] = effectLightCollision;
+  effectVector[0] = effectLightMoving;
+  effectVector[1] = effectLightFill;
+  effectVector[2] = effectLightDots;
+  effectVector[3] = effectLightSideFill;
 
   // Reset Timers
 }
 
 void loop() {
 
-  isBeat = digitalRead(PINMIC1_DIG);
+  // Read Mic and set treshold triggers
+  int musicInput = analogRead(PINMIC1_ALG);   // Raw Input
+  isBeat = digitalRead(PINMIC1_DIG);          // Potentiometer Threshold
+  isBass = musicInput > SOUND_BASS_THRESHOLD; // Hardcode Threshold
 
+  // Silence Detector
   if( timerMusicInput > TIMESTEP_MUSIC)
   {
     timerMusicInput = 0; // Reset Timer
     if(isBeat)
+    {
       timerSilence = 0;
-
-    isMusicPlaying = (timerSilence < 500);
+    }
+    isMusicPlaying = (timerSilence < 200);
   }
   
-  // Select Color
+  // Select Color Timer
   if( timerColor > TIMESTEP_COLOR)
   {
     timerColor = 0; // Reset Timer
     indexColor = (indexColor<9)? indexColor +1 : 0;
   }
 
-  // Select Effect
+  // Select Effect Timer
   if( timerEffect > TIMESTEP_EFFECT)
   {
     timerEffect = 0; // Reset Timer
     indexEffect = (indexEffect < 3)? indexEffect +1 : 1;
   }
 
-  // Light Effects
+  // Light Effects Timer
   if( timerLoop > TIMESTEP_LOOP ) // Control Frequency time
   {
     timerLoop = 0; // Reset Timer
@@ -121,28 +134,18 @@ void loop() {
     if( i >= NUM_LEDS ) inc = -1;
     if( i <= 0) inc = 1;
     i += inc;
-
-    // Effect Step
-    if(!isBeat)
-    {
-       effectVector[1](i,colorPalet[indexColor]);
-    }
-    if(!isMusicPlaying)
-    {
-      fill_solid(leds,NUM_LEDS,0x000000);
-    }
-    FastLED.show();
   }
 
-  // Strobe Effect
-  if( timerBeat > TIMESTEP_BEAT )
+  // Change Light on Beat
+  if(isBeat)
   {
-    timerBeat = 0;
-    if(isBeat)
-    {
-      if(timerSilence > 30)
-        effectVector[0](i,colorPalet[indexColor]);
-    }
+    effectVector[indexEffect](i,colorPalet[indexColor]);
+    FastLED.show();
+  }
+  else if(!isMusicPlaying)
+  {
+    soundSilenceRef = musicInput;
+    fill_solid(leds,NUM_LEDS,0x000000);
     FastLED.show();
   }
 }
@@ -176,12 +179,12 @@ void effectLightFill(unsigned int k,CRGB color)
 }
 
 /**
- * Effect: move LEDs position start to side and 
+ * Effect: move LEDs position starting from sides and 
  *         turn on everything when they reach the center
  */
 void effectLightCollision(unsigned int k,CRGB color)
 {
-    if( (NUM_LEDS - k-k) <= 1)
+    if( (NUM_LEDS - k-k) <= 1) // Center
     {
       fill_solid(leds,NUM_LEDS,color);
     }
@@ -190,5 +193,36 @@ void effectLightCollision(unsigned int k,CRGB color)
       fill_solid(leds,NUM_LEDS,0x000000);
       leds[k] = color;
       leds[NUM_LEDS-k] = color;
+    }
+}
+
+/**
+ * Effect: move LEDs position starting from sides and 
+ *         turn on everything when they reach the center
+ */
+void effectLightDots(unsigned int k,CRGB color)
+{
+    fill_solid(leds,NUM_LEDS,0x000000);
+    leds[k] = color;
+    leds[NUM_LEDS-k] = color;
+}
+
+/**
+ * Effect: move LEDs position starting from sides and 
+ *         turn on everything when they reach the center
+ */
+void effectLightSideFill(unsigned int k,CRGB color)
+{
+    int endK = (NUM_LEDS - k);
+    if( endK > k) // Center
+    {
+      fill_solid(leds,NUM_LEDS,0x000000);
+      fill_solid(leds,k,color);
+      fill_solid(leds+endK,k,color);
+    }
+    else
+    {
+      fill_solid(leds,NUM_LEDS,color);
+      fill_solid(leds+endK,k-endK,0x000000);
     }
 }
