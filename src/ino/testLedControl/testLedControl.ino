@@ -4,7 +4,11 @@
 
 #define PINMIC A0
 #define PINLED 13
-#define PINSTRIP 5
+#define PINCITY 2
+#define PINBASE 5
+#define PINDJ 3
+
+#define PINSTRIP 6
 #define NUMLEDS_STRIP 2
 
 #define BUFFER_SIZE 10
@@ -12,7 +16,7 @@
 Adafruit_NeoPixel ledStrip = Adafruit_NeoPixel(NUMLEDS_STRIP, PINSTRIP, NEO_GRB + NEO_KHZ800);
 
 elapsedMillis timerGlobal;
-const int timeStep = 2;
+const int timeStep = 10;
 
 int ledState;
 float a0,a1,a2;
@@ -45,7 +49,6 @@ void setup() {
   float w2 = TWO_PI*timeStep*freqCut2;
   a2 = 1/(w2+1);
 
-
   Serial.print("Filters PARAM: ");
   Serial.print(a0);
   Serial.print(" ");
@@ -74,11 +77,14 @@ void loop() {
     musicInput = rawInput;
 
     // Low Pass Filter (300Hz)
-    bassInput = a1*(bassInput - filterLowPich) + filterLowPich;
+    bassInput = a1*(bassInput - rawInput) + rawInput;
 
     // Toggle Led for evaluating time freq
     ledState =! ledState ;
-    digitalWrite( PINLED ,bassInput*bassInput > 50);
+    digitalWrite( PINLED ,ledState);
+    digitalWrite( PINCITY ,rawInput > 620);
+    digitalWrite( PINDJ ,filterLowPich*filterLowPich > 50);
+    digitalWrite( PINBASE ,bassInput > 540);
 
     // Print Everything for debug
     Serial.print(timerGlobal);
