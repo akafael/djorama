@@ -64,8 +64,9 @@ int isBeat;
 int isBass;
 int isMusicPlaying = 0;
 
+int timeStepLedTransition = TIMESTEP_LOOP;
+
 int soundSilenceRef = 0;
-int soundMidThreshold = 0;
 
 // Function Pointer Vector for easy effect access
 void (*effectVector[NUMEFFECTS])(unsigned int k,CRGB color);
@@ -99,17 +100,6 @@ void loop() {
   int musicInput = analogRead(PINMIC1_ALG);   // Raw Input
   isBeat = digitalRead(PINMIC1_DIG);          // Potentiometer Threshold
   isBass = musicInput > SOUND_BASS_THRESHOLD; // Hardcode Threshold
-
-  // Silence Detector
-  if( timerMusicInput > TIMESTEP_MUSIC)
-  {
-    timerMusicInput = 0; // Reset Timer
-    if(isBeat)
-    {
-      timerSilence = 0;
-    }
-    isMusicPlaying = (timerSilence < 200);
-  }
   
   // Select Color Timer
   if( timerColor > TIMESTEP_COLOR)
@@ -126,7 +116,7 @@ void loop() {
   }
 
   // Light Effects Timer
-  if( timerLoop > TIMESTEP_LOOP ) // Control Frequency time
+  if( timerLoop > timeStepLedTransition ) // Control Frequency time
   {
     timerLoop = 0; // Reset Timer
 
@@ -139,10 +129,21 @@ void loop() {
   // Change Light on Beat
   if(isBeat)
   {
+    if(timerSilence > 10)
+    {
+      timeStepLedTransition = 100;
+    }
+    else if(timerSilence > 5)
+    {
+      timeStepLedTransition = 100/timerSilence; // Speed Up transition
+    }
+
     effectVector[indexEffect](i,colorPalet[indexColor]);
+    
+    timerSilence = 0;
     FastLED.show();
   }
-  else if(!isMusicPlaying)
+  else if(timerSilence > 200)
   {
     soundSilenceRef = musicInput;
     fill_solid(leds,NUM_LEDS,0x000000);
