@@ -2,12 +2,14 @@
  * Djorama Controler
  * 
  * Features:
- *  - React to Music Volume
- *  - Simple Music Detection
+ *  - React to Sound Volume
+ *  - Music Detection by Silence Time
  *  - Independent timer for changing effect, color and speed
+ *  - LED Strip Controled By Music
+ *  - DC Motor Controled By Music
  * 
  * @author Rafael Lima
- * @version 0.2
+ * @version 0.4 
  */
 
 // Libraries -------------------------------------------------------
@@ -18,29 +20,39 @@
 #define PINLED 5
 #define PINMIC1_ALG A0
 #define PINMIC1_DIG 2
+#define PINMOTORDC1 12
+#define PINMOTORDC2 11
 
 #define NUM_LEDS 20
 #define SIZECOLORPALET 10
 #define NUMEFFECTS 4
 
-#define TIMESTEP_MUSIC 10
-#define TIMESTEP_BEAT 10
-#define TIMESTEP_LOOP 100
-#define TIMESTEP_COLOR 500
-#define TIMESTEP_EFFECT 20000
+#define TIMESTEP_MUSIC 10             // Frequency Filters Param
+#define TIMESTEP_LOOP 100             // Led Selection Transition
+#define TIMESTEP_COLOR 500            // Color Transition
+#define TIMESTEP_EFFECT 20000         // LED Effect Transition
+#define TIMESTEP_MOTORDC 10           // Max Aceleration (5/255)/100ms
+#define TIMELED_OFF 200               // Silence Time to turn off LEDs
+#define TIMESHUTDOWN_MOTORDC 5000     // Silence Time to turn down motor
 
-#define SOUND_BASS_THRESHOLD 570 // Max 600
+/* 
+ * Max time for motor to start to move 
+ *  TIMESTEP_MOTORDC*(SPEED_MOTORDC_ZERO - SPEED_MOTORDC_SAFEZERO)
+ */
+#define SPEED_MOTORDC_SAFEZERO 30     // lowest Tension reach with music
+#define SPEED_MOTORDC_ZERO     80     // lowest Tension for start to move
+
+
+#define SOUND_BASS_THRESHOLD 570      // Max 600
 
 // Global Variables ------------------------------------------------
 
 // Timers
 elapsedMillis timerSilence;
-elapsedMillis timerLEDStrip;
 elapsedMillis timerLoop;
-elapsedMillis timerBeat;
-elapsedMillis timerMusicInput;
 elapsedMillis timerColor;
 elapsedMillis timerEffect;
+elapsedMillis timerMotorDC;
 
 // LED Strip
 CRGB leds[NUM_LEDS];
@@ -68,6 +80,9 @@ int timeStepLedTransition = TIMESTEP_LOOP;
 
 int soundSilenceRef = 0;
 
+int speedMotorDC = 0;
+int stepMotorDC = 0;
+
 // Function Pointer Vector for easy effect access
 void (*effectVector[NUMEFFECTS])(unsigned int k,CRGB color);
 
@@ -76,6 +91,12 @@ void setup() {
   // Setup Pins
   pinMode(PINMIC1_ALG,INPUT);
   pinMode(PINMIC1_DIG,INPUT);
+  pinMode(PINMOTORDC1, OUTPUT);
+  pinMode(PINMOTORDC2, OUTPUT);
+
+  // Turn Off DC Motor
+  analogWrite(PINMOTORDC1,0);
+  analogWrite(PINMOTORDC2,0);
   
   // Start LED Strip
   FastLED.addLeds<WS2811, PINLED, BRG>(leds, NUM_LEDS);
@@ -126,9 +147,18 @@ void loop() {
     i += inc;
   }
 
-  // Change Light on Beat
+  // Motor DC Acceleration Control Timer
+  if( timerMotorDC > TIMESTEP_MOTORDC)
+  {
+    speedMotorDC += stepMotorDC;
+    analogWrite(PINMOTORDC1,speedMotorDC);
+    analogWrite(PINMOTORDC2,0);
+  }
+
+  // Change Effects on Beat
   if(isBeat)
   {
+    // Effect Transition Selected by beat frequency
     if(timerSilence > 10)
     {
       timeStepLedTransition = 100;
@@ -137,17 +167,30 @@ void loop() {
     {
       timeStepLedTransition = 100/timerSilence; // Speed Up transition
     }
-
-    effectVector[indexEffect](i,colorPalet[indexColor]);
-    
     timerSilence = 0;
+
+    // Light Effect
+    effectVector[indexEffect](i,colorPalet[indexColor]);
     FastLED.show();
+
+    // Speed Up Motor
+    stepMotorDC = (speedMotorDC >=255)?0:1;
   }
-  else if(timerSilence > 200)
-  {
+  else if(timerSilence > TIMELED_OFF)
+  {   
     soundSilenceRef = musicInput;
     fill_solid(leds,NUM_LEDS,0x000000);
     FastLED.show();
+
+    // Slow Down Motor
+    if(timerSilence < TIMESHUTDOWN_MOTORDC)
+    {
+      stepMotorDC = (speedMotorDC <= SPEED_MOTORDC_SAFEZERO)?0:-1;
+    }
+    else
+    {
+      stepMotorDC = (speedMotorDC <= 0)?0:-1;
+    }
   }
 }
 
