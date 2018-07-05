@@ -17,15 +17,17 @@
 #include <FastLED.h>
 
 // Constants -------------------------------------------------------
-#define PINLED 5
+#define PINLED      9
+#define PINLEDDJ    11
 #define PINMIC1_ALG A0
 #define PINMIC1_DIG 2
 #define PINMOTORDC1 12
 #define PINMOTORDC2 11
 
-#define NUM_LEDS 20
+#define NUM_LEDS 16
 #define SIZECOLORPALET 10
 #define NUMEFFECTS 4
+#define NUM_LEDS_DJ        11
 
 #define TIMESTEP_MUSIC 10             // Frequency Filters Param
 #define TIMESTEP_LOOP 100             // Led Selection Transition
@@ -56,6 +58,7 @@ elapsedMillis timerMotorDC;
 
 // LED Strip
 CRGB leds[NUM_LEDS];
+CRGB ledsDJ[NUM_LEDS_DJ];
 const CRGB colorPalet[] = {0xF7F7F7, // White Smoke
                            0xBA0034, // Crimson Glory
                            0xF70035, // Carmine Red
@@ -100,6 +103,7 @@ void setup() {
   
   // Start LED Strip
   FastLED.addLeds<WS2811, PINLED, BRG>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2811, PINLEDDJ, BRG>(ledsDJ, NUM_LEDS);
 
   // Reset all index
   indexEffect = 0;
@@ -202,6 +206,7 @@ void loop() {
 void effectTurnOn(unsigned int k,CRGB color)
 {
     fill_solid(leds,NUM_LEDS,color);
+    fill_solid(ledsDJ,NUM_LEDS_DJ,color);
 }
 
 /**
@@ -211,6 +216,8 @@ void effectLightMoving(unsigned int k,CRGB color)
 {
     fill_solid(leds,NUM_LEDS,0x000000);
     leds[k] = color;
+    fill_solid(ledsDJ,NUM_LEDS,0x000000);
+    ledsDJ[k] = color;
 }
 
 /**
@@ -220,6 +227,8 @@ void effectLightFill(unsigned int k,CRGB color)
 {
     fill_solid(leds,NUM_LEDS,0x000000);
     fill_solid(leds,i,color);
+    fill_solid(ledsDJ,NUM_LEDS,0x000000);
+    fill_solid(ledsDJ,i,color);
 }
 
 /**
@@ -230,13 +239,24 @@ void effectLightCollision(unsigned int k,CRGB color)
 {
     if( (NUM_LEDS - k-k) <= 1) // Center
     {
-      fill_solid(leds,NUM_LEDS,color);
+      fill_solid(ledsDJ,NUM_LEDS,color);
     }
     else
     {
-      fill_solid(leds,NUM_LEDS,0x000000);
-      leds[k] = color;
-      leds[NUM_LEDS-k] = color;
+      fill_solid(ledsDJ,NUM_LEDS,0x000000);
+      ledsDJ[k] = color;
+      ledsDJ[NUM_LEDS-k] = color;
+    }
+
+    if( (NUM_LEDS - k-k) <= 1) // Center
+    {
+      fill_solid(ledsDJ,NUM_LEDS,color);
+    }
+    else
+    {
+      fill_solid(ledsDJ,NUM_LEDS,0x000000);
+      ledsDJ[k] = color;
+      ledsDJ[NUM_LEDS-k] = color;
     }
 }
 
@@ -249,6 +269,10 @@ void effectLightDots(unsigned int k,CRGB color)
     fill_solid(leds,NUM_LEDS,0x000000);
     leds[k] = color;
     leds[NUM_LEDS-k] = color;
+
+    fill_solid(ledsDJ,NUM_LEDS,0x000000);
+    ledsDJ[k] = color;
+    ledsDJ[NUM_LEDS-k] = color;
 }
 
 /**
@@ -268,5 +292,18 @@ void effectLightSideFill(unsigned int k,CRGB color)
     {
       fill_solid(leds,NUM_LEDS,color);
       fill_solid(leds+endK,k-endK,0x000000);
+    }
+
+    endK = (NUM_LEDS - k);
+    if( endK > k) // Center
+    {
+      fill_solid(ledsDJ,NUM_LEDS,0x000000);
+      fill_solid(ledsDJ,k,color);
+      fill_solid(ledsDJ+endK,k,color);
+    }
+    else
+    {
+      fill_solid(ledsDJ,NUM_LEDS,color);
+      fill_solid(ledsDJ+endK,k-endK,0x000000);
     }
 }
