@@ -72,7 +72,9 @@ int timeStepLedTransition = TIMESTEP_LOOP;
 int soundSilenceRef = 0;
 
 // Function Pointer Vector for easy effect access
-void (*effectVector[NUMEFFECTS])(unsigned int k, CRGB color);
+void (*effectVectorSpeaker[NUMEFFECTS])(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color);
+void (*effectVectorBase[NUMEFFECTS])(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color);
+
 
 // Main functions --------------------------------------------------
 void setup() {
@@ -91,12 +93,20 @@ void setup() {
   i = 0;
 
   // Register effects used
-  effectVector[0] = effectLightMoving;
-  effectVector[1] = effectLightFill;
-  effectVector[2] = effectLightDots;
-  effectVector[3] = effectLightSideFill;
-
+  effectVectorBase[0] = effectLightCollision;
+  effectVectorBase[1] = effectLightFill;
+  effectVectorBase[2] = effectBlockMove;
+  effectVectorBase[3] = effectLightSideFill;
+  effectVectorSpeaker[0] = effectBlockMove;
+  effectVectorSpeaker[1] = effectLightCollision;
+  effectVectorSpeaker[2] = effectBlockX;
+  effectVectorSpeaker[3] = effectBlockRotate;
+  
   // Reset Timers
+  timerSilence = 0;
+  timerLoop = 0;
+  timerColor = 0;
+  timerEffect = 0;
 }
 
 void loop() {
@@ -137,23 +147,24 @@ void loop() {
     // Effect Transition Selected by beat frequency
     if (timerSilence > 10)
     {
-      timeStepLedTransition = 100;
+      timeStepLedTransition = 10*timerSilence;
     }
     else if (timerSilence > 5)
     {
-      timeStepLedTransition = 100 / timerSilence; // Speed Up transition
+      timeStepLedTransition = 500; // Speed Up transition
     }
     timerSilence = 0;
 
     // Light Effect
-    effectVector[indexEffect](i, colorPalet[indexColor]);
+    effectVectorSpeaker[indexEffect](ledsSpeaker,NUM_LEDS_SPEAKER,i,colorPalet[indexColor]);
+    effectVectorBase[indexEffect](ledsBase,NUM_LEDS_BASE,i,colorPalet[indexColor]);
     FastLED.show();
   }
   else if (timerSilence > TIMELED_OFF)
   {
     soundSilenceRef = musicInput;
     fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
-    fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
+    fill_solid(ledsBase, NUM_LEDS_BASE, 0x000000);
     FastLED.show();
   }
 }
@@ -163,109 +174,138 @@ void loop() {
 /**
  * Effect: Turn On all LEDs
  */
-void effectTurnOn(unsigned int k, CRGB color)
+void effectTurnOn(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
 {
-  fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, color);
-  fill_solid(ledsBase, NUM_LEDS_BASE, color);
+    fill_solid(ledStrip,stripSize,color);
 }
 
 /**
  * Effect: move LED on position
  */
-void effectLightMoving(unsigned int k, CRGB color)
+void effectLightMoving(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
 {
-  fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
-  ledsSpeaker[k] = color;
-  fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
-  ledsBase[k] = color;
+    fill_solid(ledStrip,stripSize,0x000000);
+    ledStrip[k] = color;
 }
 
 /**
  * Effect: Turn On LEDS in sequence
  */
-void effectLightFill(unsigned int k, CRGB color)
+void effectLightFill(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
 {
-  fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
-  fill_solid(ledsSpeaker, i, color);
-  fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
-  fill_solid(ledsBase, i, color);
+    fill_solid(ledStrip,stripSize,0x000000);
+    fill_solid(ledStrip,k,color);
 }
 
 /**
- * Effect: move LEDs position starting from sides and
+ * Effect: move LEDs position start to side and 
  *         turn on everything when they reach the center
  */
-void effectLightCollision(unsigned int k, CRGB color)
+void effectLightCollision(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
 {
-  if ( (NUM_LEDS_SPEAKER - k - k) <= 1) // Center
-  {
-    fill_solid(ledsBase, NUM_LEDS_SPEAKER, color);
-  }
-  else
-  {
-    fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
-    ledsBase[k] = color;
-    ledsBase[NUM_LEDS_SPEAKER - k] = color;
-  }
-
-  if ( (NUM_LEDS_SPEAKER - k - k) <= 1) // Center
-  {
-    fill_solid(ledsBase, NUM_LEDS_SPEAKER, color);
-  }
-  else
-  {
-    fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
-    ledsBase[k] = color;
-    ledsBase[NUM_LEDS_SPEAKER - k] = color;
-  }
+    if( (stripSize - k-k) <= 1)
+    {
+      fill_solid(ledStrip,stripSize,color);
+    }
+    else
+    {
+      fill_solid(ledStrip,stripSize,0x000000);
+      ledStrip[k] = color;
+      ledStrip[stripSize-k] = color;
+    }
 }
 
 /**
- * Effect: move LEDs position starting from sides and
+ * Effect: move LEDs position starting from sides and 
  *         turn on everything when they reach the center
  */
-void effectLightDots(unsigned int k, CRGB color)
+void effectLightDots(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
 {
-  fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
-  ledsSpeaker[k] = color;
-  ledsSpeaker[NUM_LEDS_SPEAKER - k] = color;
-
-  fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
-  ledsBase[k] = color;
-  ledsBase[NUM_LEDS_SPEAKER - k] = color;
+    fill_solid(ledStrip,stripSize,0x000000);
+    ledStrip[k] = color;
+    ledStrip[stripSize-k] = color;
 }
 
 /**
- * Effect: move LEDs position starting from sides and
+ * Effect: move LEDs position starting from sides and 
  *         turn on everything when they reach the center
  */
-void effectLightSideFill(unsigned int k, CRGB color)
+void effectLightSideFill(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
 {
-  int endK = (NUM_LEDS_SPEAKER - k);
-  if ( endK > k) // Center
-  {
-    fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
-    fill_solid(ledsSpeaker, k, color);
-    fill_solid(ledsSpeaker + endK, k, color);
-  }
-  else
-  {
-    fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, color);
-    fill_solid(ledsSpeaker + endK, k - endK, 0x000000);
-  }
+    int endK = (stripSize - k);
+    if( endK > k) // Center
+    {
+      fill_solid(ledStrip,stripSize,0x000000);
+      fill_solid(ledStrip,k,color);
+      fill_solid(ledStrip+endK,k,color);
+      fill_solid(ledStrip,stripSize,0x000000);
+    }
+    else
+    {
+      fill_solid(ledStrip,stripSize,color);
+      fill_solid(ledStrip+endK,k-endK,0x000000);
+    }
+}
 
-  endK = (NUM_LEDS_SPEAKER - k);
-  if ( endK > k) // Center
-  {
-    fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
-    fill_solid(ledsBase, k, color);
-    fill_solid(ledsBase + endK, k, color);
-  }
-  else
-  {
-    fill_solid(ledsBase, NUM_LEDS_SPEAKER, color);
-    fill_solid(ledsBase + endK, k - endK, 0x000000);
-  }
+/**
+ * Effect: Light a segment
+ */
+void effectBlockMove(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
+{
+    int blockSize = stripSize/4;
+    int blockNum = k%4;
+    int blockPos = blockNum*blockSize;
+
+    fill_solid(ledStrip,stripSize,0x000000);
+    fill_solid(ledStrip+blockPos,blockSize,color);
+}
+
+/**
+ * Effect: Alternate between Odds and Even Count
+ */
+void effectAlternate(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
+{
+    int hitOdds = k%(stripSize/2);
+    fill_solid(ledStrip,stripSize,0x000000);
+    fill_solid(ledStrip+2*k+hitOdds,1,color);
+}
+
+/**
+ * Effect: Light a segment
+ */
+void effectBlockRotate(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
+{
+    int blockSize = stripSize/4;
+    int blockNum = k%4;
+
+    fill_solid(ledStrip,stripSize,0x000000);
+    for(int blockPos = 0; blockPos < 4; blockPos++)
+      ledStrip[blockPos*blockSize+blockNum] = color;
+}
+
+/**
+ * Effect: Light a segment
+ */
+void effectBlockX(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
+{
+    int blockSize = stripSize/4;
+    int lightA = k%4;
+    int lightB = (k+2)%4;  
+
+    fill_solid(ledStrip,stripSize,0x000000);
+    for(int blockPos = 0; blockPos < 4; blockPos++)
+    {
+      ledStrip[blockPos*blockSize+lightA] = color;
+      ledStrip[blockPos*blockSize+lightB] = color;  
+    }
+}
+
+/**
+ * Effect: Turn On all LEDs
+ */
+void effectBlink(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
+{
+    fill_solid(ledStrip,stripSize,color*(k%2));
 }
 
 

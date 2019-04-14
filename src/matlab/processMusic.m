@@ -21,9 +21,22 @@ lpFilt = designfilt('lowpassiir','FilterOrder',4, ...
         'SampleRate',musicInfo.SampleRate)
 drumsMusic = filter(lpFilt,music);
 
+% BMP Filter
+bmpLowFreq = 2
+bpmFilt = designfilt('lowpassiir','FilterOrder',1, ...
+        'PassbandFrequency',bmpLowFreq,'PassbandRipple',0.2, ...
+        'SampleRate',musicInfo.SampleRate)
+compassMusic = filter(bpmFilt,music);
+monoCompassMusic = (compassMusic(:,1) + compassMusic(:,2))/2;
+bpmThreshold = 0.9*max(monoCompassMusic);
+timeHitCompass = musicTime( monoCompassMusic > bpmThreshold );
+timeHitCompass = timeHitCompass(2:end) - timeHitCompass(1:end-1);
+
 % Mono Version - Reduce Pan effects
 monoMusic = (music(:,1) + music(:,2))/2;
 monoDrumsMusic = (drumsMusic(:,1) + drumsMusic(:,2))/2;
+
+
 
 % Ploting
 hold on
