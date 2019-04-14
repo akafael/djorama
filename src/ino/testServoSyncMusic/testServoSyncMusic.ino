@@ -2,11 +2,12 @@
 #include <elapsedMillis.h>
 
 #define PINSERVO1 9
+#define PINMIC1_DIG 5
 
 elapsedMillis timerGlobal;
-const int timeStep = 2000/180; // ms
+const int timeStep = 5000/180; // ms
 const int angleStep = 1; // degres
-const int angleRange = 90; // degres
+const int angleRange = 180; // degres
 
 Servo myServo;
 int angleServo;
@@ -18,13 +19,22 @@ void setup() {
 }
 
 void loop() {
+
+  int isBeat = digitalRead(PINMIC1_DIG);
+
+
+  if(isBeat)
+  {
+     stepServo = (angleServo >=angleRange)?-angleStep:(angleServo <= 0) ?angleStep:stepServo;
+  }
+
+
   if( timerGlobal > timeStep ) // Control Frequency time
   {
     // Reset Timer
     timerGlobal = 0; 
 
     myServo.write(angleServo); 
-    stepServo = (angleServo >=angleRange)?-angleStep:(angleServo <= 0) ?angleStep:stepServo;
     angleServo += stepServo;
 
     // 

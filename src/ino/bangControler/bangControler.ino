@@ -1,12 +1,11 @@
 /**
- * Djorama Controler
+ * Bang Controler
  *
  * Features:
  *  - React to Sound Volume
  *  - Music Detection by Silence Time
  *  - Independent timer for changing effect, color and speed
  *  - LED Strip Controled By Music
- *  - DC Motor Controled By Music
  *
  * @author Rafael Lima
  * @version 0.4
@@ -17,34 +16,22 @@
 #include <FastLED.h>
 
 // Constants -------------------------------------------------------
-#define PINLED      10
-#define PINLEDDJ    11
-#define PINMIC1_ALG A4
-#define PINMIC2_ALG A0
-#define PINMIC1_DIG 7
-#define PINMOTORDC1 32
-#define PINMOTORDC2 42
+#define PINLEDS_SPEAKERS     9
+#define PINLIDS_BASE         10
+#define PINMIC1_ALG          A4
+#define PINMIC2_ALG          A0
+#define PINMIC1_DIG           7
 
-#define NUM_LEDS 16
-#define SIZECOLORPALET 10
-#define NUMEFFECTS 4
-#define NUM_LEDS_DJ        11
+#define SIZECOLORPALET       10
+#define NUMEFFECTS            4
+#define NUM_LEDS_SPEAKER     16
+#define NUM_LEDS_BASE         8
 
 #define TIMESTEP_MUSIC 10             // Frequency Filters Param
 #define TIMESTEP_LOOP 100             // Led Selection Transition
 #define TIMESTEP_COLOR 500            // Color Transition
 #define TIMESTEP_EFFECT 20000         // LED Effect Transition
-#define TIMESTEP_MOTORDC 10           // Max Aceleration (5/255)/100ms
 #define TIMELED_OFF 200               // Silence Time to turn off LEDs
-#define TIMESHUTDOWN_MOTORDC 5000     // Silence Time to turn down motor
-
-/*
- * Max time for motor to start to move
- *  TIMESTEP_MOTORDC*(SPEED_MOTORDC_ZERO - SPEED_MOTORDC_SAFEZERO)
- */
-#define SPEED_MOTORDC_SAFEZERO 30     // lowest Tension reach with music
-#define SPEED_MOTORDC_ZERO     80     // lowest Tension for start to move
-
 
 #define SOUND_BASS_THRESHOLD 570      // Max 600
 
@@ -55,11 +42,10 @@ elapsedMillis timerSilence;
 elapsedMillis timerLoop;
 elapsedMillis timerColor;
 elapsedMillis timerEffect;
-elapsedMillis timerMotorDC;
 
 // LED Strip
-CRGB leds[NUM_LEDS];
-CRGB ledsDJ[NUM_LEDS_DJ];
+CRGB ledsSpeaker[NUM_LEDS_SPEAKER];
+CRGB ledsBase[NUM_LEDS_BASE];
 const CRGB colorPalet[] = {0xF7F7F7, // White Smoke
                            0xBA0034, // Crimson Glory
                            0xF70035, // Carmine Red
@@ -85,9 +71,6 @@ int timeStepLedTransition = TIMESTEP_LOOP;
 
 int soundSilenceRef = 0;
 
-int speedMotorDC = 0;
-int stepMotorDC = 0;
-
 // Function Pointer Vector for easy effect access
 void (*effectVector[NUMEFFECTS])(unsigned int k, CRGB color);
 
@@ -97,16 +80,10 @@ void setup() {
   pinMode(PINMIC1_ALG, INPUT);
   pinMode(PINMIC2_ALG, INPUT);
   pinMode(PINMIC1_DIG, INPUT);
-  pinMode(PINMOTORDC1, OUTPUT);
-  pinMode(PINMOTORDC2, OUTPUT);
-
-  // Turn Off DC Motor
-  analogWrite(PINMOTORDC1, 0);
-  analogWrite(PINMOTORDC2, 0);
 
   // Start LED Strip
-  FastLED.addLeds<WS2811, PINLED, BRG>(leds, NUM_LEDS);
-  FastLED.addLeds<WS2811, PINLEDDJ, BRG>(ledsDJ, NUM_LEDS);
+  FastLED.addLeds<WS2811, PINLEDS_SPEAKERS, BRG>(ledsSpeaker, NUM_LEDS_SPEAKER);
+  FastLED.addLeds<WS2811, PINLIDS_BASE, BRG>(ledsBase, NUM_LEDS_SPEAKER);
 
   // Reset all index
   indexEffect = 0;
@@ -148,18 +125,10 @@ void loop() {
   {
     timerLoop = 0; // Reset Timer
 
-    // Alternate from 0 to NUM_LEDS
-    if ( i >= NUM_LEDS ) inc = -1;
+    // Alternate from 0 to NUM_LEDS_SPEAKER
+    if ( i >= NUM_LEDS_SPEAKER ) inc = -1;
     if ( i <= 0) inc = 1;
     i += inc;
-  }
-
-  // Motor DC Acceleration Control Timer
-  if ( timerMotorDC > TIMESTEP_MOTORDC)
-  {
-    speedMotorDC += stepMotorDC;
-    analogWrite(PINMOTORDC1, speedMotorDC);
-    analogWrite(PINMOTORDC2, 0);
   }
 
   // Change Effects on Beat
@@ -179,25 +148,13 @@ void loop() {
     // Light Effect
     effectVector[indexEffect](i, colorPalet[indexColor]);
     FastLED.show();
-
-    // Speed Up Motor
-    stepMotorDC = (speedMotorDC >= 255) ? 0 : 1;
   }
   else if (timerSilence > TIMELED_OFF)
   {
     soundSilenceRef = musicInput;
-    fill_solid(leds, NUM_LEDS, 0x000000);
+    fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
+    fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
     FastLED.show();
-
-    // Slow Down Motor
-    if (timerSilence < TIMESHUTDOWN_MOTORDC)
-    {
-      stepMotorDC = (speedMotorDC <= SPEED_MOTORDC_SAFEZERO) ? 0 : -1;
-    }
-    else
-    {
-      stepMotorDC = (speedMotorDC <= 0) ? 0 : -1;
-    }
   }
 }
 
@@ -208,8 +165,8 @@ void loop() {
  */
 void effectTurnOn(unsigned int k, CRGB color)
 {
-  fill_solid(leds, NUM_LEDS, color);
-  fill_solid(ledsDJ, NUM_LEDS_DJ, color);
+  fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, color);
+  fill_solid(ledsBase, NUM_LEDS_BASE, color);
 }
 
 /**
@@ -217,10 +174,10 @@ void effectTurnOn(unsigned int k, CRGB color)
  */
 void effectLightMoving(unsigned int k, CRGB color)
 {
-  fill_solid(leds, NUM_LEDS, 0x000000);
-  leds[k] = color;
-  fill_solid(ledsDJ, NUM_LEDS, 0x000000);
-  ledsDJ[k] = color;
+  fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
+  ledsSpeaker[k] = color;
+  fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
+  ledsBase[k] = color;
 }
 
 /**
@@ -228,10 +185,10 @@ void effectLightMoving(unsigned int k, CRGB color)
  */
 void effectLightFill(unsigned int k, CRGB color)
 {
-  fill_solid(leds, NUM_LEDS, 0x000000);
-  fill_solid(leds, i, color);
-  fill_solid(ledsDJ, NUM_LEDS, 0x000000);
-  fill_solid(ledsDJ, i, color);
+  fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
+  fill_solid(ledsSpeaker, i, color);
+  fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
+  fill_solid(ledsBase, i, color);
 }
 
 /**
@@ -240,26 +197,26 @@ void effectLightFill(unsigned int k, CRGB color)
  */
 void effectLightCollision(unsigned int k, CRGB color)
 {
-  if ( (NUM_LEDS - k - k) <= 1) // Center
+  if ( (NUM_LEDS_SPEAKER - k - k) <= 1) // Center
   {
-    fill_solid(ledsDJ, NUM_LEDS, color);
+    fill_solid(ledsBase, NUM_LEDS_SPEAKER, color);
   }
   else
   {
-    fill_solid(ledsDJ, NUM_LEDS, 0x000000);
-    ledsDJ[k] = color;
-    ledsDJ[NUM_LEDS - k] = color;
+    fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
+    ledsBase[k] = color;
+    ledsBase[NUM_LEDS_SPEAKER - k] = color;
   }
 
-  if ( (NUM_LEDS - k - k) <= 1) // Center
+  if ( (NUM_LEDS_SPEAKER - k - k) <= 1) // Center
   {
-    fill_solid(ledsDJ, NUM_LEDS, color);
+    fill_solid(ledsBase, NUM_LEDS_SPEAKER, color);
   }
   else
   {
-    fill_solid(ledsDJ, NUM_LEDS, 0x000000);
-    ledsDJ[k] = color;
-    ledsDJ[NUM_LEDS - k] = color;
+    fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
+    ledsBase[k] = color;
+    ledsBase[NUM_LEDS_SPEAKER - k] = color;
   }
 }
 
@@ -269,13 +226,13 @@ void effectLightCollision(unsigned int k, CRGB color)
  */
 void effectLightDots(unsigned int k, CRGB color)
 {
-  fill_solid(leds, NUM_LEDS, 0x000000);
-  leds[k] = color;
-  leds[NUM_LEDS - k] = color;
+  fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
+  ledsSpeaker[k] = color;
+  ledsSpeaker[NUM_LEDS_SPEAKER - k] = color;
 
-  fill_solid(ledsDJ, NUM_LEDS, 0x000000);
-  ledsDJ[k] = color;
-  ledsDJ[NUM_LEDS - k] = color;
+  fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
+  ledsBase[k] = color;
+  ledsBase[NUM_LEDS_SPEAKER - k] = color;
 }
 
 /**
@@ -284,29 +241,31 @@ void effectLightDots(unsigned int k, CRGB color)
  */
 void effectLightSideFill(unsigned int k, CRGB color)
 {
-  int endK = (NUM_LEDS - k);
+  int endK = (NUM_LEDS_SPEAKER - k);
   if ( endK > k) // Center
   {
-    fill_solid(leds, NUM_LEDS, 0x000000);
-    fill_solid(leds, k, color);
-    fill_solid(leds + endK, k, color);
+    fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, 0x000000);
+    fill_solid(ledsSpeaker, k, color);
+    fill_solid(ledsSpeaker + endK, k, color);
   }
   else
   {
-    fill_solid(leds, NUM_LEDS, color);
-    fill_solid(leds + endK, k - endK, 0x000000);
+    fill_solid(ledsSpeaker, NUM_LEDS_SPEAKER, color);
+    fill_solid(ledsSpeaker + endK, k - endK, 0x000000);
   }
 
-  endK = (NUM_LEDS - k);
+  endK = (NUM_LEDS_SPEAKER - k);
   if ( endK > k) // Center
   {
-    fill_solid(ledsDJ, NUM_LEDS, 0x000000);
-    fill_solid(ledsDJ, k, color);
-    fill_solid(ledsDJ + endK, k, color);
+    fill_solid(ledsBase, NUM_LEDS_SPEAKER, 0x000000);
+    fill_solid(ledsBase, k, color);
+    fill_solid(ledsBase + endK, k, color);
   }
   else
   {
-    fill_solid(ledsDJ, NUM_LEDS, color);
-    fill_solid(ledsDJ + endK, k - endK, 0x000000);
+    fill_solid(ledsBase, NUM_LEDS_SPEAKER, color);
+    fill_solid(ledsBase + endK, k - endK, 0x000000);
   }
 }
+
+
