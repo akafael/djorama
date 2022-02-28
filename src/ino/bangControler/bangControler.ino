@@ -28,10 +28,11 @@
 #define NUM_LEDS_SPEAKER     16
 #define NUM_LEDS_BASE         8
 
+// Time step (ms)
 #define TIMESTEP_MUSIC 10             // Frequency Filters Param
 #define TIMESTEP_LOOP 100             // Led Selection Transition
 #define TIMESTEP_COLOR 500            // Color Transition
-#define TIMESTEP_EFFECT 20000         // LED Effect Transition
+#define TIMESTEP_EFFECT 5000          // LED Efect Transition
 #define TIMELED_OFF 200               // Silence Time to turn off LEDs
 
 #define SOUND_BASS_THRESHOLD 570      // Max 600
@@ -143,16 +144,16 @@ void loop() {
   }
 
   // Change Effects on Beat
-  if (isBeat)
+  if (isBass)
   {
     // Effect Transition Selected by beat frequency
     if (timerSilence > 10)
     {
-      timeStepLedTransition = 10*timerSilence;
+      timeStepLedTransition = 100;
     }
     else if (timerSilence > 5)
     {
-      timeStepLedTransition = 500; // Speed Up transition
+      timeStepLedTransition = 100 / timerSilence; // Speed Up transition
     }
     timerSilence = 0;
 
