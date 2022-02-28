@@ -11,11 +11,12 @@
 // Libraries -------------------------------------------------------
 #include <elapsedMillis.h>
 #include <FastLED.h>
+#include "ledStripEffects.h"
 
 // Constants -------------------------------------------------------
-#define PINLED 9
+#define PINLED 10
 
-#define NUM_LEDS 16
+#define NUM_LEDS 8
 #define SIZECOLORPALET 10
 #define NUMEFFECTS 7
 
@@ -63,13 +64,13 @@ void setup() {
   i = 0;
 
   // Register effects used
-  effectVector[0] = effectTurnOn;
-  effectVector[1] = effectLightMoving;
-  effectVector[2] = effectLightCollision;
-  effectVector[3] = effectLightDots;
-  effectVector[4] = effectLightSideFill;
-  effectVector[5] = effectBlockMove;
-  effectVector[6] = effectAlternate;
+  effectVector[0] = LightEffect::TurnOn;
+  effectVector[1] = LightEffect::LightMoving;
+  effectVector[2] = LightEffect::LightCollision;
+  effectVector[3] = LightEffect::LightDots;
+  effectVector[4] = LightEffect::LightSideFill;
+  effectVector[5] = LightEffect::BlockMove;
+  effectVector[6] = LightEffect::Alternate;
 
   // Reset Timers
 }
@@ -101,7 +102,7 @@ void loop() {
 
     // Effect Step
     //effectVector[indexEffect](leds,NUM_LEDS,i,colorPalet[indexColor]);
-    fill_solid(leds,NUM_LEDS,0x0000FF);
+    LightEffect().TurnOn(leds,NUM_LEDS,i,colorPalet[indexColor]);
     //effectTurnOn(i,colorPalet[indexColor]); // ignore effect and turn Everything off
     FastLED.show();
 

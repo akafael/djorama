@@ -14,6 +14,7 @@
 // Libraries -------------------------------------------------------
 #include <elapsedMillis.h>
 #include <FastLED.h>
+#include "ledStripEffects/ledStripEffects.h"
 
 // Constants -------------------------------------------------------
 #define PINLEDS_SPEAKERS     9
@@ -93,14 +94,14 @@ void setup() {
   i = 0;
 
   // Register effects used
-  effectVectorBase[0] = effectLightCollision;
-  effectVectorBase[1] = effectLightFill;
-  effectVectorBase[2] = effectBlockMove;
-  effectVectorBase[3] = effectLightSideFill;
-  effectVectorSpeaker[0] = effectBlockMove;
-  effectVectorSpeaker[1] = effectLightCollision;
-  effectVectorSpeaker[2] = effectBlockX;
-  effectVectorSpeaker[3] = effectBlockRotate;
+  effectVectorBase[0] = LightEffect::LightCollision;
+  effectVectorBase[1] = LightEffect::LightFill;
+  effectVectorBase[2] = LightEffect::BlockMove;
+  effectVectorBase[3] = LightEffect::LightSideFill;
+  effectVectorSpeaker[0] = LightEffect::BlockMove;
+  effectVectorSpeaker[1] = LightEffect::LightCollision;
+  effectVectorSpeaker[2] = LightEffect::BlockX;
+  effectVectorSpeaker[3] = LightEffect::BlockRotate;
   
   // Reset Timers
   timerSilence = 0;
@@ -168,144 +169,3 @@ void loop() {
     FastLED.show();
   }
 }
-
-// Auxilar Functions -------------------------------------------------
-
-/**
- * Effect: Turn On all LEDs
- */
-void effectTurnOn(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    fill_solid(ledStrip,stripSize,color);
-}
-
-/**
- * Effect: move LED on position
- */
-void effectLightMoving(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    fill_solid(ledStrip,stripSize,0x000000);
-    ledStrip[k] = color;
-}
-
-/**
- * Effect: Turn On LEDS in sequence
- */
-void effectLightFill(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    fill_solid(ledStrip,stripSize,0x000000);
-    fill_solid(ledStrip,k,color);
-}
-
-/**
- * Effect: move LEDs position start to side and 
- *         turn on everything when they reach the center
- */
-void effectLightCollision(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    if( (stripSize - k-k) <= 1)
-    {
-      fill_solid(ledStrip,stripSize,color);
-    }
-    else
-    {
-      fill_solid(ledStrip,stripSize,0x000000);
-      ledStrip[k] = color;
-      ledStrip[stripSize-k] = color;
-    }
-}
-
-/**
- * Effect: move LEDs position starting from sides and 
- *         turn on everything when they reach the center
- */
-void effectLightDots(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    fill_solid(ledStrip,stripSize,0x000000);
-    ledStrip[k] = color;
-    ledStrip[stripSize-k] = color;
-}
-
-/**
- * Effect: move LEDs position starting from sides and 
- *         turn on everything when they reach the center
- */
-void effectLightSideFill(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    int endK = (stripSize - k);
-    if( endK > k) // Center
-    {
-      fill_solid(ledStrip,stripSize,0x000000);
-      fill_solid(ledStrip,k,color);
-      fill_solid(ledStrip+endK,k,color);
-      fill_solid(ledStrip,stripSize,0x000000);
-    }
-    else
-    {
-      fill_solid(ledStrip,stripSize,color);
-      fill_solid(ledStrip+endK,k-endK,0x000000);
-    }
-}
-
-/**
- * Effect: Light a segment
- */
-void effectBlockMove(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    int blockSize = stripSize/4;
-    int blockNum = k%4;
-    int blockPos = blockNum*blockSize;
-
-    fill_solid(ledStrip,stripSize,0x000000);
-    fill_solid(ledStrip+blockPos,blockSize,color);
-}
-
-/**
- * Effect: Alternate between Odds and Even Count
- */
-void effectAlternate(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    int hitOdds = k%(stripSize/2);
-    fill_solid(ledStrip,stripSize,0x000000);
-    fill_solid(ledStrip+2*k+hitOdds,1,color);
-}
-
-/**
- * Effect: Light a segment
- */
-void effectBlockRotate(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    int blockSize = stripSize/4;
-    int blockNum = k%4;
-
-    fill_solid(ledStrip,stripSize,0x000000);
-    for(int blockPos = 0; blockPos < 4; blockPos++)
-      ledStrip[blockPos*blockSize+blockNum] = color;
-}
-
-/**
- * Effect: Light a segment
- */
-void effectBlockX(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    int blockSize = stripSize/4;
-    int lightA = k%4;
-    int lightB = (k+2)%4;  
-
-    fill_solid(ledStrip,stripSize,0x000000);
-    for(int blockPos = 0; blockPos < 4; blockPos++)
-    {
-      ledStrip[blockPos*blockSize+lightA] = color;
-      ledStrip[blockPos*blockSize+lightB] = color;  
-    }
-}
-
-/**
- * Effect: Turn On all LEDs
- */
-void effectBlink(CRGB* ledStrip, unsigned int stripSize, unsigned int k, CRGB color)
-{
-    fill_solid(ledStrip,stripSize,color*(k%2));
-}
-
-
